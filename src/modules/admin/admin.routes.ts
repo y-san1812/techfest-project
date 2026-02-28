@@ -10,27 +10,34 @@ export const adminRouter = Router();
 
 adminRouter.use(authenticateJwt);
 
-// Super Admin only: user + role management
-adminRouter.use(requireRoles([ROLE.SUPER_ADMIN] as any));
 
-adminRouter.get('/roles', async (_req, res, next) => {
-  try {
-    const roles = await listRoles();
-    res.json(roles);
-  } catch (err) {
-    next(err);
+adminRouter.get(
+  '/roles',
+  requireRoles([ROLE.SUPER_ADMIN, ROLE.ADMIN] as any),
+  async (_req, res, next) => {
+    try {
+      const roles = await listRoles();
+      res.json(roles);
+    } catch (err) {
+      next(err);
+    }
   }
-});
+);
 
-adminRouter.get('/users', validateRequest(listUsersSchema), async (req, res, next) => {
-  try {
-    const { q, role, take, skip } = (req as any).validated.query;
-    const result = await listUsers({ q, role, take: take ?? 25, skip: skip ?? 0 });
-    res.json(result);
-  } catch (err) {
-    next(err);
+adminRouter.get(
+  '/users',
+  requireRoles([ROLE.SUPER_ADMIN, ROLE.ADMIN] as any),
+  validateRequest(listUsersSchema),
+  async (req, res, next) => {
+    try {
+      const { q, role, take, skip } = (req as any).validated.query;
+      const result = await listUsers({ q, role, take: take ?? 25, skip: skip ?? 0 });
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
   }
-});
+);
 
 adminRouter.post('/users', validateRequest(createUserSchema), async (req, res, next) => {
   try {
