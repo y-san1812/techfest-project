@@ -14,6 +14,7 @@ import ReportsPage from "./pages/ReportsPage";
 import ReferralsPage from "./pages/ReferralsPage";
 import UsersPage from "./pages/UsersPage";
 import TeamsPage from "./pages/TeamsPage";
+import ClubsPage from "./pages/ClubsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,11 @@ const App = () => (
             <Route path="/users" element={
               <ProtectedRoute roles={['SUPER_ADMIN', 'ADMIN']}>
                 <UsersPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/clubs" element={
+              <ProtectedRoute roles={['SUPER_ADMIN', 'ADMIN', 'CLUB_COORDINATOR']}>
+                <ClubsPage />
               </ProtectedRoute>
             } />
             <Route path="/registrations" element={

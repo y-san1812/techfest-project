@@ -15,16 +15,17 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  roles                UserRole[]
-  teamsLed             Team[]                    @relation("TeamLead")
-  teamMembers          TeamMember[]
-  referrals            Referral[]
-  notifications        Notification[]
-  activityLogs         ActivityLog[]
-  taskComments         TaskComment[]
-  facultyCoordinator   EventFacultyCoordinator[] @relation("FacultyCoordinator")
-  joinRequests         TeamJoinRequest[]         @relation("JoinRequests")
-  taskAssignments      TaskAssignment[]
+  roles                   UserRole[]
+  teamsLed                Team[]                    @relation("TeamLead")
+  teamMembers             TeamMember[]
+  referrals               Referral[]
+  notifications           Notification[]
+  activityLogs            ActivityLog[]
+  taskComments            TaskComment[]
+  facultyCoordinator      EventFacultyCoordinator[] @relation("FacultyCoordinator")
+  clubCoordinator         ClubCoordinator[]         @relation("ClubCoordinator")
+  joinRequests            TeamJoinRequest[]         @relation("JoinRequests")
+  taskAssignments         TaskAssignment[]
 }
 
 model Role {
@@ -226,7 +227,21 @@ model Club {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  events Event[]
+  events       Event[]
+  coordinators ClubCoordinator[]
+}
+
+model ClubCoordinator {
+  id        String   @id @default(cuid())
+  clubId    String
+  userId    String
+  assignedAt DateTime @default(now())
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User @relation("ClubCoordinator", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, userId])
+  @@index([userId])
 }
 
 model EventFacultyCoordinator {

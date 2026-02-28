@@ -24,6 +24,9 @@ export const setUserRolesSchema = z.object({
   }),
   body: z.object({
     roles: z.array(z.string()).min(1),
+    clubId: z.string().cuid().optional(),
+    eventId: z.string().cuid().optional(),
+    teamId: z.string().cuid().optional(),
   }),
 });
 

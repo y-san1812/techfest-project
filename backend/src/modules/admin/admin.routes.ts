@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { ROLE } from '@config/roles';
 import { authenticateJwt, requireRoles } from '@middleware/authMiddleware';
 import { validateRequest } from '@middleware/validateRequest';
-import { deleteUser, listRoles, listUsers, createUserWithRoles, setUserRoles } from './admin.service';
+import { deleteUser, listRoles, listUsers, createUserWithRoles, setUserRoles, listClubs, listEventsByClub, listTeamsByEvent } from './admin.service';
 import { createUserSchema, deleteUserSchema, listUsersSchema, setUserRolesSchema } from './admin.validation';
 
 export const adminRouter = Router();
@@ -44,8 +44,8 @@ adminRouter.post('/users', validateRequest(createUserSchema), async (req, res, n
 
 adminRouter.patch('/users/:id/roles', validateRequest(setUserRolesSchema), async (req, res, next) => {
   try {
-    const { roles } = (req as any).validated.body;
-    await setUserRoles(req.params.id, roles);
+    const { roles, clubId, eventId, teamId } = (req as any).validated.body;
+    await setUserRoles(req.params.id, roles, { clubId, eventId, teamId });
     res.status(200).json({ message: 'Roles updated' });
   } catch (err) {
     next(err);
@@ -56,6 +56,33 @@ adminRouter.delete('/users/:id', validateRequest(deleteUserSchema), async (req, 
   try {
     await deleteUser(req.params.id);
     res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get('/clubs', async (_req, res, next) => {
+  try {
+    const clubs = await listClubs();
+    res.json(clubs);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get('/clubs/:clubId/events', async (req, res, next) => {
+  try {
+    const events = await listEventsByClub(req.params.clubId);
+    res.json(events);
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get('/events/:eventId/teams', async (req, res, next) => {
+  try {
+    const teams = await listTeamsByEvent(req.params.eventId);
+    res.json(teams);
   } catch (err) {
     next(err);
   }

@@ -14,6 +14,8 @@ import {
   Zap,
   Menu,
   X,
+  Users,
+  Building2,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -30,13 +32,25 @@ const links: SidebarLink[] = [
     label: 'Events',
     to: '/events',
     icon: CalendarDays,
-    roles: ['SUPER_ADMIN', 'ADMIN', 'FACULTY_COORDINATOR', 'CLUB_COORDINATOR'],
+    roles: ['SUPER_ADMIN', 'ADMIN', 'FACULTY_COORDINATOR', 'CLUB_COORDINATOR', 'TEAM_LEAD', 'VOLUNTEER'],
   },
   {
-    label: 'Registrations',
-    to: '/registrations',
-    icon: ClipboardList,
-    roles: ['SUPER_ADMIN', 'ADMIN', 'FACULTY_COORDINATOR', 'CLUB_COORDINATOR'],
+    label: 'Teams',
+    to: '/teams',
+    icon: Users,
+    roles: ['SUPER_ADMIN', 'ADMIN', 'FACULTY_COORDINATOR', 'CLUB_COORDINATOR', 'TEAM_LEAD', 'VOLUNTEER'],
+  },
+  {
+    label: 'Users',
+    to: '/users',
+    icon: Users,
+    roles: ['SUPER_ADMIN', 'ADMIN'],
+  },
+  {
+    label: 'Clubs',
+    to: '/clubs',
+    icon: Building2,
+    roles: ['SUPER_ADMIN', 'ADMIN', 'CLUB_COORDINATOR'],
   },
   {
     label: 'Referrals',

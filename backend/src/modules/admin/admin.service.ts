@@ -97,7 +97,7 @@ export async function createUserWithRoles(input: {
   });
 }
 
-export async function setUserRoles(userId: string, roles: string[]) {
+export async function setUserRoles(userId: string, roles: string[], coordinatorData?: { clubId?: string; eventId?: string; teamId?: string }) {
   const roleRecords = await prisma.role.findMany({ where: { name: { in: roles } } });
   if (roleRecords.length !== roles.length) {
     const error = new Error('One or more roles are invalid') as Error & { statusCode?: number };
@@ -111,6 +111,45 @@ export async function setUserRoles(userId: string, roles: string[]) {
       data: roleRecords.map((r) => ({ userId, roleId: r.id })),
       skipDuplicates: true,
     });
+
+    // Handle Club Coordinator assignment
+    if (roles.includes('CLUB_COORDINATOR') && coordinatorData?.clubId) {
+      await tx.clubCoordinator.upsert({
+        where: { clubId_userId: { clubId: coordinatorData.clubId, userId } },
+        update: { assignedAt: new Date() },
+        create: { clubId: coordinatorData.clubId, userId },
+      });
+    } else {
+      // Remove club coordinator assignments if role is being removed
+      await tx.clubCoordinator.deleteMany({ where: { userId } });
+    }
+
+    // Handle Faculty Coordinator assignment
+    if (roles.includes('FACULTY_COORDINATOR') && coordinatorData?.eventId) {
+      await tx.eventFacultyCoordinator.upsert({
+        where: { eventId_userId: { eventId: coordinatorData.eventId, userId } },
+        update: { assignedAt: new Date() },
+        create: { eventId: coordinatorData.eventId, userId },
+      });
+    } else {
+      // Remove faculty coordinator assignments if role is being removed
+      await tx.eventFacultyCoordinator.deleteMany({ where: { userId } });
+    }
+
+    // Handle Team Lead assignment
+    if (roles.includes('TEAM_LEAD') && coordinatorData?.teamId) {
+      // Verify team exists and update team lead
+      const team = await tx.team.findUnique({ where: { id: coordinatorData.teamId } });
+      if (!team) {
+        const error = new Error('Team not found') as Error & { statusCode?: number };
+        error.statusCode = 404;
+        throw error;
+      }
+      await tx.team.update({
+        where: { id: coordinatorData.teamId },
+        data: { teamLeadId: userId },
+      });
+    }
 
     const hasAmbassador = roles.includes('CAMPUS_AMBASSADOR');
     if (hasAmbassador) {
@@ -138,5 +177,28 @@ export async function deleteUser(userId: string) {
 
 export async function listRoles() {
   return prisma.role.findMany({ orderBy: { name: 'asc' } });
+}
+
+export async function listClubs() {
+  return prisma.club.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+}
+
+export async function listEventsByClub(clubId: string) {
+  return prisma.event.findMany({
+    where: { clubId },
+    select: { id: true, title: true, clubId: true },
+    orderBy: { title: 'asc' },
+  });
+}
+
+export async function listTeamsByEvent(eventId: string) {
+  return prisma.team.findMany({
+    where: { eventId },
+    select: { id: true, name: true, eventId: true, teamLeadId: true },
+    orderBy: { name: 'asc' },
+  });
 }
 
