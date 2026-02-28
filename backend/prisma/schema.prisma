@@ -1,0 +1,239 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  roles          UserRole[]
+  registrations  Registration[]
+  teamsLed       Team[]        @relation("TeamLead")
+  teamMembers    TeamMember[]
+  tasksAssigned  Task[]        @relation("TaskAssignee")
+  referrals      Referral[]
+  notifications  Notification[]
+  activityLogs   ActivityLog[]
+  taskComments   TaskComment[]
+}
+
+model Role {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  description String?
+  users       UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          Int               @id @default(autoincrement())
+  name        String            @unique
+  description String?
+  roles       RolePermission[]
+}
+
+model UserRole {
+  userId String
+  roleId Int
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model Event {
+  id              String          @id @default(cuid())
+  title           String
+  description     String
+  category        String
+  status          EventStatus     @default(DRAFT)
+  startTime       DateTime
+  endTime         DateTime
+  location        String
+  registrationCap Int?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  registrations Registration[]
+  teams         Team[]
+  tasks         Task[]
+}
+
+model Registration {
+  id          String             @id @default(cuid())
+  userId      String
+  eventId     String
+  teamId      String?
+  status      RegistrationStatus @default(PENDING)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  referralId  String?
+  paymentId   String?
+
+  user     User       @relation(fields: [userId], references: [id])
+  event    Event      @relation(fields: [eventId], references: [id])
+  team     Team?      @relation(fields: [teamId], references: [id])
+  referral Referral?  @relation(fields: [referralId], references: [id])
+  payment  Payment?   @relation(fields: [paymentId], references: [id])
+
+  @@unique([userId, eventId])
+  @@index([eventId])
+  @@index([teamId])
+}
+
+model Team {
+  id           String       @id @default(cuid())
+  name         String
+  eventId      String
+  teamLeadId   String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  
+  event      Event       @relation(fields: [eventId], references: [id])
+  teamLead   User        @relation("TeamLead", fields: [teamLeadId], references: [id])
+  members    TeamMember[]
+  tasks      Task[]
+  registrations Registration[]
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  teamId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId])
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus   @default(TODO)
+  deadline    DateTime?
+  eventId     String?
+  teamId      String?
+  assigneeId  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  event    Event? @relation(fields: [eventId], references: [id])
+  team     Team?  @relation(fields: [teamId], references: [id])
+  assignee User?  @relation("TaskAssignee", fields: [assigneeId], references: [id])
+
+  comments TaskComment[]
+
+  @@index([eventId])
+  @@index([teamId])
+  @@index([assigneeId])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model Referral {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  ownerId    String
+  createdAt  DateTime @default(now())
+
+  owner         User           @relation(fields: [ownerId], references: [id])
+  registrations Registration[]
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  amount        Int
+  currency      String   @default("INR")
+  status        PaymentStatus @default(PENDING)
+  provider      String?
+  providerRef   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  registrations Registration[]
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, read])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum RegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
