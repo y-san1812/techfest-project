@@ -8,22 +8,23 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
+  id    String   @id @default(cuid())
   email     String   @unique
   password  String
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  roles          UserRole[]
-  registrations  Registration[]
-  teamsLed       Team[]        @relation("TeamLead")
-  teamMembers    TeamMember[]
-  tasksAssigned  Task[]        @relation("TaskAssignee")
-  referrals      Referral[]
-  notifications  Notification[]
-  activityLogs   ActivityLog[]
-  taskComments   TaskComment[]
+  roles                UserRole[]
+  teamsLed             Team[]                    @relation("TeamLead")
+  teamMembers          TeamMember[]
+  referrals            Referral[]
+  notifications        Notification[]
+  activityLogs         ActivityLog[]
+  taskComments         TaskComment[]
+  facultyCoordinator   EventFacultyCoordinator[] @relation("FacultyCoordinator")
+  joinRequests         TeamJoinRequest[]         @relation("JoinRequests")
+  taskAssignments      TaskAssignment[]
 }
 
 model Role {
@@ -68,6 +69,7 @@ model Event {
   title           String
   description     String
   category        String
+  clubId          String
   status          EventStatus     @default(DRAFT)
   startTime       DateTime
   endTime         DateTime
@@ -76,32 +78,14 @@ model Event {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
-  registrations Registration[]
-  teams         Team[]
-  tasks         Task[]
+  club                      Club                        @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  teams                     Team[]
+  facultyCoordinators       EventFacultyCoordinator[]
+  
+  @@index([clubId])
 }
 
-model Registration {
-  id          String             @id @default(cuid())
-  userId      String
-  eventId     String
-  teamId      String?
-  status      RegistrationStatus @default(PENDING)
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  referralId  String?
-  paymentId   String?
 
-  user     User       @relation(fields: [userId], references: [id])
-  event    Event      @relation(fields: [eventId], references: [id])
-  team     Team?      @relation(fields: [teamId], references: [id])
-  referral Referral?  @relation(fields: [referralId], references: [id])
-  payment  Payment?   @relation(fields: [paymentId], references: [id])
-
-  @@unique([userId, eventId])
-  @@index([eventId])
-  @@index([teamId])
-}
 
 model Team {
   id           String       @id @default(cuid())
@@ -111,11 +95,14 @@ model Team {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   
-  event      Event       @relation(fields: [eventId], references: [id])
-  teamLead   User        @relation("TeamLead", fields: [teamLeadId], references: [id])
-  members    TeamMember[]
-  tasks      Task[]
-  registrations Registration[]
+  event        Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  teamLead     User            @relation("TeamLead", fields: [teamLeadId], references: [id])
+  members      TeamMember[]
+  tasks        Task[]
+  joinRequests TeamJoinRequest[]
+  
+  @@index([eventId])
+  @@index([teamLeadId])
 }
 
 model TeamMember {
@@ -135,23 +122,16 @@ model Task {
   id          String    @id @default(cuid())
   title       String
   description String?
-  status      TaskStatus   @default(TODO)
   deadline    DateTime?
-  eventId     String?
-  teamId      String?
-  assigneeId  String?
+  teamId      String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  event    Event? @relation(fields: [eventId], references: [id])
-  team     Team?  @relation(fields: [teamId], references: [id])
-  assignee User?  @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  team        Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  assignments TaskAssignment[]
+  comments    TaskComment[]
 
-  comments TaskComment[]
-
-  @@index([eventId])
   @@index([teamId])
-  @@index([assigneeId])
 }
 
 model TaskComment {
@@ -171,8 +151,7 @@ model Referral {
   ownerId    String
   createdAt  DateTime @default(now())
 
-  owner         User           @relation(fields: [ownerId], references: [id])
-  registrations Registration[]
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 }
 
 model Payment {
@@ -184,8 +163,6 @@ model Payment {
   providerRef   String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-
-  registrations Registration[]
 }
 
 model Notification {
@@ -235,5 +212,62 @@ enum PaymentStatus {
   PENDING
   SUCCESS
   FAILED
+}
+
+enum TeamJoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Club {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events Event[]
+}
+
+model EventFacultyCoordinator {
+  eventId    String
+  userId     String
+  assignedAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation("FacultyCoordinator", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, userId])
+  @@index([userId])
+}
+
+model TeamJoinRequest {
+  id        String                @id @default(cuid())
+  teamId    String
+  userId    String
+  status    TeamJoinRequestStatus @default(PENDING)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation("JoinRequests", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId])
+}
+
+model TaskAssignment {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  status    TaskStatus @default(TODO)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation("TaskAssignments", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([userId])
 }
 
