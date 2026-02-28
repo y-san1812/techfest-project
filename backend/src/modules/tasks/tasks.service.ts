@@ -5,9 +5,7 @@ interface CreateTaskInput {
   title: string;
   description?: string;
   deadline?: string;
-  eventId?: string;
-  teamId?: string;
-  assigneeId?: string;
+  teamId: string;
 }
 
 async function getTaskOrThrow(taskId: string) {
@@ -15,6 +13,13 @@ async function getTaskOrThrow(taskId: string) {
     where: { id: taskId },
     include: {
       team: { select: { teamLeadId: true } },
+      assignments: {
+        include: {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      },
     },
   });
   if (!task) {
@@ -35,21 +40,49 @@ export async function createTask(input: CreateTaskInput) {
       title: input.title,
       description: input.description,
       deadline: input.deadline ? new Date(input.deadline) : undefined,
-      eventId: input.eventId,
       teamId: input.teamId,
-      assigneeId: input.assigneeId,
     },
   });
 }
 
-export async function listTasksForUser(userId: string) {
+export async function getTaskById(id: string) {
+  return getTaskOrThrow(id);
+}
+
+export async function getTasksByTeam(teamId: string) {
   return prisma.task.findMany({
-    where: {
-      OR: [{ assigneeId: userId }, { team: { teamLeadId: userId } }],
-    },
+    where: { teamId },
     include: {
-      event: true,
-      team: true,
+      assignments: {
+        include: {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      },
+      comments: {
+        include: {
+          author: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+}
+
+export async function listTasksForUser(userId: string) {
+  return prisma.taskAssignment.findMany({
+    where: { userId },
+    include: {
+      task: {
+        include: {
+          team: {
+            select: { id: true, name: true },
+          },
+        },
+      },
     },
   });
 }
@@ -62,7 +95,7 @@ export async function updateTaskStatus(
   const task = await getTaskOrThrow(id);
   const canEdit =
     isAdminLike(actor.roles) ||
-    task.assigneeId === actor.userId ||
+    task.assignments.some(a => a.userId === actor.userId) ||
     (task.team?.teamLeadId ? task.team.teamLeadId === actor.userId : false);
 
   if (!canEdit) {
@@ -71,9 +104,74 @@ export async function updateTaskStatus(
     throw error;
   }
 
+  return prisma.taskAssignment.updateMany({
+    where: {
+      taskId: id,
+      userId: actor.userId,
+    },
+    data: { status },
+  });
+}
+
+export async function updateTask(id: string, input: Partial<CreateTaskInput>) {
+  await getTaskOrThrow(id);
+
   return prisma.task.update({
     where: { id },
-    data: { status },
+    data: {
+      title: input.title,
+      description: input.description,
+      deadline: input.deadline ? new Date(input.deadline) : undefined,
+    },
+  });
+}
+
+export async function deleteTask(id: string) {
+  await getTaskOrThrow(id);
+  await prisma.task.delete({ where: { id } });
+}
+
+export async function assignTask(taskId: string, userId: string) {
+  const existingAssignment = await prisma.taskAssignment.findUnique({
+    where: {
+      taskId_userId: {
+        taskId,
+        userId,
+      },
+    },
+  });
+
+  if (existingAssignment) {
+    const error = new Error('User is already assigned to this task') as Error & { statusCode?: number };
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return prisma.taskAssignment.create({
+    data: {
+      taskId,
+      userId,
+      status: 'TODO',
+    },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true },
+      },
+      task: {
+        select: { id: true, title: true },
+      },
+    },
+  });
+}
+
+export async function unassignTask(taskId: string, userId: string) {
+  return prisma.taskAssignment.delete({
+    where: {
+      taskId_userId: {
+        taskId,
+        userId,
+      },
+    },
   });
 }
 
@@ -86,7 +184,7 @@ export async function addTaskComment(
   const task = await getTaskOrThrow(taskId);
   const canComment =
     isAdminLike(actor.roles) ||
-    task.assigneeId === actor.userId ||
+    task.assignments.some(a => a.userId === actor.userId) ||
     (task.team?.teamLeadId ? task.team.teamLeadId === actor.userId : false);
 
   if (!canComment) {

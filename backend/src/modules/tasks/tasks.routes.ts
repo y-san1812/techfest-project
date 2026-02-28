@@ -8,11 +8,16 @@ import {
   createTask,
   listTasksForUser,
   updateTaskStatus,
+  assignTask,
+  unassignTask,
+  getTaskById,
+  getTasksByTeam,
 } from './tasks.service';
 import {
   addTaskCommentSchema,
   createTaskSchema,
   updateTaskStatusSchema,
+  assignTaskSchema,
 } from './tasks.validation';
 
 export const tasksRouter = Router();
@@ -28,14 +33,60 @@ tasksRouter.get('/my', async (req, res, next) => {
   }
 });
 
+tasksRouter.get('/:id', async (req, res, next) => {
+  try {
+    const task = await getTaskById(req.params.id);
+    res.json(task);
+  } catch (err) {
+    next(err);
+  }
+});
+
+tasksRouter.get('/team/:teamId', async (req, res, next) => {
+  try {
+    const tasks = await getTasksByTeam(req.params.teamId);
+    res.json(tasks);
+  } catch (err) {
+    next(err);
+  }
+});
+
 tasksRouter.post(
   '/',
-  requireRoles([ROLE.SUPER_ADMIN, ROLE.ADMIN, ROLE.FACULTY_COORDINATOR, ROLE.CLUB_COORDINATOR] as any),
+  requireRoles([ROLE.SUPER_ADMIN, ROLE.ADMIN, ROLE.FACULTY_COORDINATOR, ROLE.TEAM_LEAD] as any),
   validateRequest(createTaskSchema),
   async (req, res, next) => {
     try {
       const created = await createTask((req as any).validated.body);
       res.status(201).json(created);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+tasksRouter.post(
+  '/:taskId/assign',
+  requireRoles([ROLE.SUPER_ADMIN, ROLE.ADMIN, ROLE.TEAM_LEAD] as any),
+  validateRequest(assignTaskSchema),
+  async (req, res, next) => {
+    try {
+      const { userId } = (req as any).validated.body;
+      const result = await assignTask(req.params.taskId, userId);
+      res.status(201).json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+tasksRouter.delete(
+  '/:taskId/assign/:userId',
+  requireRoles([ROLE.SUPER_ADMIN, ROLE.ADMIN, ROLE.TEAM_LEAD] as any),
+  async (req, res, next) => {
+    try {
+      await unassignTask(req.params.taskId, req.params.userId);
+      res.status(204).send();
     } catch (err) {
       next(err);
     }

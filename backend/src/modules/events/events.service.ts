@@ -6,6 +6,7 @@ interface CreateEventInput {
   title: string;
   description: string;
   category: string;
+  clubId: string;
   status?: 'DRAFT' | 'PUBLISHED' | 'CLOSED';
   startTime: string;
   endTime: string;
@@ -46,6 +47,7 @@ export async function createEvent(input: CreateEventInput) {
       title: input.title,
       description: input.description,
       category: input.category,
+      clubId: input.clubId,
       status: (input.status ?? 'DRAFT') as any,
       startTime: new Date(input.startTime),
       endTime: new Date(input.endTime),

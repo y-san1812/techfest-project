@@ -14,6 +14,9 @@ import { notificationsRouter } from '@modules/notifications/notifications.routes
 import { usersRouter } from '@modules/users/users.routes';
 import { adminRouter } from '@modules/admin/admin.routes';
 import { referralsRouter } from '@modules/referrals/referrals.routes';
+import { clubsRouter } from '@modules/clubs/clubs.routes';
+import { teamsRouter } from '@modules/teams/teams.routes';
+import { facultyRouter } from '@modules/faculty/faculty.routes';
 
 export async function createServer(): Promise<Application> {
   const app = express();
@@ -48,6 +51,9 @@ export async function createServer(): Promise<Application> {
   app.use('/api/users', usersRouter);
   app.use('/api/admin', adminRouter);
   app.use('/api/referrals', referralsRouter);
+  app.use('/api/clubs', clubsRouter);
+  app.use('/api/teams', teamsRouter);
+  app.use('/api/faculty', facultyRouter);
 
   // Error handler (must be last)
   app.use(errorHandler);

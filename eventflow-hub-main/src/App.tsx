@@ -12,6 +12,8 @@ import TasksPage from "./pages/TasksPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import ReportsPage from "./pages/ReportsPage";
 import ReferralsPage from "./pages/ReferralsPage";
+import UsersPage from "./pages/UsersPage";
+import TeamsPage from "./pages/TeamsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,8 +29,18 @@ const App = () => (
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/events" element={
-              <ProtectedRoute roles={['SUPER_ADMIN', 'ADMIN', 'FACULTY_COORDINATOR', 'CLUB_COORDINATOR']}>
+              <ProtectedRoute roles={['SUPER_ADMIN', 'ADMIN', 'FACULTY_COORDINATOR', 'CLUB_COORDINATOR', 'TEAM_LEAD', 'VOLUNTEER']}>
                 <EventsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/teams" element={
+              <ProtectedRoute roles={['SUPER_ADMIN', 'ADMIN', 'FACULTY_COORDINATOR', 'TEAM_LEAD', 'VOLUNTEER']}>
+                <TeamsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/users" element={
+              <ProtectedRoute roles={['SUPER_ADMIN', 'ADMIN']}>
+                <UsersPage />
               </ProtectedRoute>
             } />
             <Route path="/registrations" element={

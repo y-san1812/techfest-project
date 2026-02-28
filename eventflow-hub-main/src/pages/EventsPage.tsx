@@ -10,11 +10,17 @@ interface Event {
   title: string;
   description: string;
   category: string;
+  clubId: string;
   status: 'DRAFT' | 'PUBLISHED' | 'CLOSED';
   startTime: string;
   endTime: string;
   location: string;
   registrationCap: number | null;
+}
+
+interface Club {
+  id: string;
+  name: string;
 }
 
 export default function EventsPage() {
@@ -109,13 +115,18 @@ export default function EventsPage() {
 }
 
 function CreateEventForm({ onCreated }: { onCreated: () => void }) {
+  const [clubs, setClubs] = useState<Club[]>([]);
   const [form, setForm] = useState({
-    title: '', description: '', category: '', location: '',
+    title: '', description: '', category: '', clubId: '', location: '',
     startTime: '', endTime: '', registrationCap: '',
     status: 'DRAFT' as const,
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get<Club[]>('/clubs').then(setClubs).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,6 +155,12 @@ function CreateEventForm({ onCreated }: { onCreated: () => void }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <input className={inputCls} placeholder="Title" required value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} />
         <input className={inputCls} placeholder="Category" required value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))} />
+        <select className={inputCls} required value={form.clubId} onChange={e => setForm(f => ({...f, clubId: e.target.value}))}>
+          <option value="">Select Club</option>
+          {clubs.map(club => (
+            <option key={club.id} value={club.id}>{club.name}</option>
+          ))}
+        </select>
         <input className={inputCls} placeholder="Location" required value={form.location} onChange={e => setForm(f => ({...f, location: e.target.value}))} />
         <input className={inputCls} placeholder="Registration Cap" type="number" value={form.registrationCap} onChange={e => setForm(f => ({...f, registrationCap: e.target.value}))} />
         <input className={inputCls} type="datetime-local" required value={form.startTime} onChange={e => setForm(f => ({...f, startTime: e.target.value}))} />
