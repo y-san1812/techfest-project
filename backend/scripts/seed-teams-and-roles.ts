@@ -65,13 +65,13 @@ async function main() {
     {
       name: 'Team Lead 1',
       email: 'teamlead1@example.com',
-      password: 'lead123',
+      password: 'teamlead123',
       role: 'TEAM_LEAD',
     },
     {
       name: 'Team Lead 2',
       email: 'teamlead2@example.com',
-      password: 'lead123',
+      password: 'teamlead456',
       role: 'TEAM_LEAD',
     },
     {
