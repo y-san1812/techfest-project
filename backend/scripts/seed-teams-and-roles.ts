@@ -10,7 +10,6 @@ async function main() {
     club = await prisma.club.create({
       data: {
         name: 'Tech Club',
-        description: 'A club for all tech enthusiasts',
       },
     });
     console.log(`✓ Created club: ${club.name}`);
@@ -201,8 +200,8 @@ async function main() {
   if (existingMembersTeam1 === 0) {
     await prisma.teamMember.createMany({
       data: [
-        { teamId: team1.id, userId: memberUser1.id, role: 'DEVELOPER' },
-        { teamId: team1.id, userId: memberUser2.id, role: 'DESIGNER' },
+        { teamId: team1.id, userId: memberUser1.id },
+        { teamId: team1.id, userId: memberUser2.id },
       ],
     });
     console.log(`✓ Added members to ${team1.name}`);
@@ -214,7 +213,7 @@ async function main() {
 
   if (existingMembersTeam2 === 0) {
     await prisma.teamMember.createMany({
-      data: [{ teamId: team2.id, userId: memberUser3.id, role: 'DEVELOPER' }],
+      data: [{ teamId: team2.id, userId: memberUser3.id }],
     });
     console.log(`✓ Added members to ${team2.name}`);
   }
@@ -242,9 +241,7 @@ async function main() {
       data: {
         title: 'Setup Project Repository',
         description: 'Initialize git repository and set up GitHub project',
-        status: 'COMPLETED',
         teamId: team1.id,
-        createdBy: teamLeadUser1.id,
       },
     });
 
@@ -252,9 +249,7 @@ async function main() {
       data: {
         title: 'Design UI Mockups',
         description: 'Create wireframes and UI mockups using Figma',
-        status: 'IN_PROGRESS',
         teamId: team1.id,
-        createdBy: teamLeadUser1.id,
       },
     });
 
@@ -262,18 +257,16 @@ async function main() {
       data: {
         title: 'Frontend Development',
         description: 'Build the frontend components',
-        status: 'PENDING',
         teamId: team1.id,
-        createdBy: teamLeadUser1.id,
       },
     });
 
-    // Assign tasks to team members
+    // Assign tasks to team members with different statuses
     await prisma.taskAssignment.createMany({
       data: [
-        { taskId: task1.id, userId: memberUser1.id },
-        { taskId: task2.id, userId: memberUser2.id },
-        { taskId: task3.id, userId: memberUser1.id },
+        { taskId: task1.id, userId: memberUser1.id, status: 'COMPLETED' },
+        { taskId: task2.id, userId: memberUser2.id, status: 'IN_PROGRESS' },
+        { taskId: task3.id, userId: memberUser1.id, status: 'TODO' },
       ],
     });
 
@@ -287,9 +280,7 @@ async function main() {
       data: {
         title: 'Backend API Design',
         description: 'Design RESTful API endpoints',
-        status: 'IN_PROGRESS',
         teamId: team2.id,
-        createdBy: teamLeadUser2.id,
       },
     });
 
@@ -297,17 +288,15 @@ async function main() {
       data: {
         title: 'Database Schema',
         description: 'Create database schema and migrations',
-        status: 'PENDING',
         teamId: team2.id,
-        createdBy: teamLeadUser2.id,
       },
     });
 
-    // Assign tasks to team members
+    // Assign tasks to team members with different statuses
     await prisma.taskAssignment.createMany({
       data: [
-        { taskId: task4.id, userId: memberUser3.id },
-        { taskId: task5.id, userId: memberUser3.id },
+        { taskId: task4.id, userId: memberUser3.id, status: 'IN_PROGRESS' },
+        { taskId: task5.id, userId: memberUser3.id, status: 'TODO' },
       ],
     });
 
