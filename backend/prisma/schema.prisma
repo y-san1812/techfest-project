@@ -15,16 +15,18 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  roles                UserRole[]
-  teamsLed             Team[]                    @relation("TeamLead")
-  teamMembers          TeamMember[]
-  referrals            Referral[]
-  notifications        Notification[]
-  activityLogs         ActivityLog[]
-  taskComments         TaskComment[]
-  facultyCoordinator   EventFacultyCoordinator[] @relation("FacultyCoordinator")
-  joinRequests         TeamJoinRequest[]         @relation("JoinRequests")
-  taskAssignments TaskAssignment[] @relation("TaskAssignments")
+  roles                    UserRole[]
+  teamsLed                 Team[]                    @relation("TeamLead")
+  teamMembers              TeamMember[]
+  referrals                Referral[]
+  notifications            Notification[]
+  activityLogs             ActivityLog[]
+  taskComments             TaskComment[]
+  facultyCoordinator       EventFacultyCoordinator[] @relation("FacultyCoordinator")
+  joinRequests             TeamJoinRequest[]         @relation("JoinRequests")
+  taskAssignments          TaskAssignment[]          @relation("TaskAssignments")
+  facultyCoordinatorRoles  FacultyCoordinatorRole[]  @relation("FacultyCoordinatorRole")
+  teamLeadRoles            TeamLeadRole[]            @relation("TeamLeadRole")
 }
 
 model Role {
@@ -81,6 +83,7 @@ model Event {
   club                      Club                        @relation(fields: [clubId], references: [id], onDelete: Cascade)
   teams                     Team[]
   facultyCoordinators       EventFacultyCoordinator[]
+  coordinatorRoles          FacultyCoordinatorRole[]    @relation("FacultyCoordinatorRole")
   
   @@index([clubId])
 }
@@ -95,11 +98,12 @@ model Team {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   
-  event        Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  teamLead     User            @relation("TeamLead", fields: [teamLeadId], references: [id])
+  event        Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  teamLead     User               @relation("TeamLead", fields: [teamLeadId], references: [id])
   members      TeamMember[]
   tasks        Task[]
   joinRequests TeamJoinRequest[]
+  leadRoles    TeamLeadRole[]     @relation("TeamLeadRole")
   
   @@index([eventId])
   @@index([teamLeadId])
@@ -239,6 +243,34 @@ model EventFacultyCoordinator {
 
   @@id([eventId, userId])
   @@index([userId])
+}
+
+model FacultyCoordinatorRole {
+  id        String   @id @default(cuid())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation("FacultyCoordinatorRole", fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation("FacultyCoordinatorRole", fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([userId])
+  @@index([eventId])
+}
+
+model TeamLeadRole {
+  id        String   @id @default(cuid())
+  userId    String
+  teamId    String
+  createdAt DateTime @default(now())
+
+  user User @relation("TeamLeadRole", fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation("TeamLeadRole", fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@index([userId])
+  @@index([teamId])
 }
 
 model TeamJoinRequest {
