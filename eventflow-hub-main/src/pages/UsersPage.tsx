@@ -111,7 +111,7 @@ export default function UsersPage() {
 
   const handleSelectUser = (user: User) => {
     setSelectedUser(user);
-    setSelectedRoles(user.roles.map(r => r.role.name));
+    setSelectedRoles(user.roles.map(r => typeof r === 'string' ? r : r.role.name));
     setSelectedClub('');
     setSelectedEvent('');
     setSelectedTeam('');
@@ -181,11 +181,11 @@ export default function UsersPage() {
                         <div className="font-medium">{user.name}</div>
                         <div className="text-sm text-gray-600">{user.email}</div>
                         <div className="flex gap-1 mt-1 flex-wrap">
-                          {user.roles.map((r: any) => (
-                            <Badge key={r.role.name} variant="secondary" className="text-xs">
-                              {r.role.name}
+                          {Array.isArray(user.roles) ? user.roles.map((r: any) => (
+                            <Badge key={typeof r === 'string' ? r : r.role.name} variant="secondary" className="text-xs">
+                              {typeof r === 'string' ? r : r.role.name}
                             </Badge>
-                          ))}
+                          )) : null}
                         </div>
                       </button>
                     ))
