@@ -28,6 +28,8 @@ export async function listUsers(input: { q?: string; role?: string; take: number
         email: true,
         createdAt: true,
         roles: { select: { role: { select: { name: true } } } },
+        facultyCoordinatorRoles: { select: { eventId: true, event: { select: { title: true } } } },
+        teamLeadRoles: { select: { teamId: true, team: { select: { name: true } } } },
       },
     }),
     prisma.user.count({ where }),
@@ -36,8 +38,19 @@ export async function listUsers(input: { q?: string; role?: string; take: number
   return {
     total,
     items: items.map((u) => ({
-      ...u,
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      createdAt: u.createdAt,
       roles: u.roles.map((r) => r.role.name),
+      facultyCoordinatorRoles: u.facultyCoordinatorRoles.map((fcr) => ({
+        eventId: fcr.eventId,
+        eventTitle: fcr.event.title,
+      })),
+      teamLeadRoles: u.teamLeadRoles.map((tlr) => ({
+        teamId: tlr.teamId,
+        teamName: tlr.team.name,
+      })),
     })),
   };
 }
@@ -97,7 +110,11 @@ export async function createUserWithRoles(input: {
   });
 }
 
-export async function setUserRoles(userId: string, roles: string[]) {
+export async function setUserRoles(
+  userId: string,
+  roles: string[],
+  context?: { role: string; eventId?: string; teamId?: string }[]
+) {
   const roleRecords = await prisma.role.findMany({ where: { name: { in: roles } } });
   if (roleRecords.length !== roles.length) {
     const error = new Error('One or more roles are invalid') as Error & { statusCode?: number };
@@ -111,6 +128,30 @@ export async function setUserRoles(userId: string, roles: string[]) {
       data: roleRecords.map((r) => ({ userId, roleId: r.id })),
       skipDuplicates: true,
     });
+
+    // Handle contextual roles (FACULTY_COORDINATOR and TEAM_LEAD)
+    if (context && context.length > 0) {
+      // Remove old contextual roles
+      await tx.facultyCoordinatorRole.deleteMany({ where: { userId } });
+      await tx.teamLeadRole.deleteMany({ where: { userId } });
+
+      // Add new contextual roles
+      for (const ctx of context) {
+        if (ctx.role === 'FACULTY_COORDINATOR' && ctx.eventId) {
+          await tx.facultyCoordinatorRole.upsert({
+            where: { userId_eventId: { userId, eventId: ctx.eventId } },
+            update: {},
+            create: { userId, eventId: ctx.eventId },
+          });
+        } else if (ctx.role === 'TEAM_LEAD' && ctx.teamId) {
+          await tx.teamLeadRole.upsert({
+            where: { userId_teamId: { userId, teamId: ctx.teamId } },
+            update: {},
+            create: { userId, teamId: ctx.teamId },
+          });
+        }
+      }
+    }
 
     const hasAmbassador = roles.includes('CAMPUS_AMBASSADOR');
     if (hasAmbassador) {
@@ -128,7 +169,7 @@ export async function setUserRoles(userId: string, roles: string[]) {
       }
     }
 
-    return { userId, roles };
+    return { userId, roles, context };
   });
 }
 

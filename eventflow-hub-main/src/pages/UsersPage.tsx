@@ -13,6 +13,18 @@ interface User {
   name: string;
   email: string;
   roles: string[];
+  facultyCoordinatorRoles?: Array<{ eventId: string; eventTitle: string }>;
+  teamLeadRoles?: Array<{ teamId: string; teamName: string }>;
+}
+
+interface Event {
+  id: string;
+  title: string;
+}
+
+interface Team {
+  id: string;
+  name: string;
 }
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -22,6 +34,7 @@ export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [roleContext, setRoleContext] = useState<Array<{ role: string; eventId?: string; teamId?: string }>>([]);
 
   const axiosConfig = { headers: { Authorization: `Bearer ${token}` } };
 
@@ -44,20 +57,51 @@ export default function UsersPage() {
     },
   });
 
+  const { data: events = [] } = useQuery({
+    queryKey: ['events'],
+    queryFn: async () => {
+      const response = await axios.get(`${API_BASE}/events`, axiosConfig);
+      return response.data;
+    },
+  });
+
+  const { data: teams = [] } = useQuery({
+    queryKey: ['teams'],
+    queryFn: async () => {
+      const response = await axios.get(`${API_BASE}/teams`, axiosConfig);
+      return response.data;
+    },
+  });
+
   const setRolesMutation = useMutation({
-    mutationFn: async (data: { userId: string; roles: string[] }) => {
-      await axios.patch(`${API_BASE}/admin/users/${data.userId}/roles`, { roles: data.roles }, axiosConfig);
+    mutationFn: async (data: { userId: string; roles: string[]; context?: Array<{ role: string; eventId?: string; teamId?: string }> }) => {
+      await axios.patch(`${API_BASE}/admin/users/${data.userId}/roles`, { roles: data.roles, context: data.context }, axiosConfig);
     },
     onSuccess: () => {
       refetch();
       setSelectedUser(null);
       setSelectedRoles([]);
+      setRoleContext([]);
     },
   });
 
   const handleSelectUser = (user: User) => {
     setSelectedUser(user);
     setSelectedRoles(user.roles);
+    
+    // Initialize context from existing roles
+    const context: Array<{ role: string; eventId?: string; teamId?: string }> = [];
+    if (user.facultyCoordinatorRoles) {
+      user.facultyCoordinatorRoles.forEach(fcr => {
+        context.push({ role: 'FACULTY_COORDINATOR', eventId: fcr.eventId });
+      });
+    }
+    if (user.teamLeadRoles) {
+      user.teamLeadRoles.forEach(tlr => {
+        context.push({ role: 'TEAM_LEAD', teamId: tlr.teamId });
+      });
+    }
+    setRoleContext(context);
   };
 
   const handleRoleToggle = (roleId: string) => {
@@ -71,7 +115,11 @@ export default function UsersPage() {
   const handleSaveRoles = () => {
     if (!selectedUser) return;
     const roleNames = selectedRoles;
-    setRolesMutation.mutate({ userId: selectedUser.id, roles: roleNames });
+    setRolesMutation.mutate({ 
+      userId: selectedUser.id, 
+      roles: roleNames,
+      context: roleContext 
+    });
   };
 
   return (
@@ -118,11 +166,20 @@ export default function UsersPage() {
                       <div className="font-medium">{user.name}</div>
                       <div className="text-sm text-gray-600">{user.email}</div>
                       <div className="flex gap-1 mt-1 flex-wrap">
-                        {user.roles.map((role: string) => (
-  <Badge key={role}>
-    {role}
-  </Badge>
-))}
+                        {user.roles.map((role: string) => {
+                          let context = '';
+                          if (role === 'FACULTY_COORDINATOR' && user.facultyCoordinatorRoles?.length) {
+                            context = ` (${user.facultyCoordinatorRoles.map(f => f.eventTitle).join(', ')})`;
+                          }
+                          if (role === 'TEAM_LEAD' && user.teamLeadRoles?.length) {
+                            context = ` (${user.teamLeadRoles.map(t => t.teamName).join(', ')})`;
+                          }
+                          return (
+                            <Badge key={role}>
+                              {role}{context}
+                            </Badge>
+                          );
+                        })}
                       </div>
                     </button>
                   ))}
@@ -140,20 +197,81 @@ export default function UsersPage() {
                 <CardDescription>{selectedUser.name}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {allRoles.map((role: any) => (
-                    <label key={role.id} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedRoles.includes(role.name)}
-                        onChange={() => handleRoleToggle(role.name)}
-                        className="w-4 h-4 rounded"
-                      />
-                      <span className="text-sm">{role.name}</span>
-                      {role.description && (
-                        <span className="text-xs text-gray-500">({role.description})</span>
+                    <div key={role.id} className="border rounded-lg p-3">
+                      <label className="flex items-center gap-2 cursor-pointer mb-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedRoles.includes(role.name)}
+                          onChange={() => handleRoleToggle(role.name)}
+                          className="w-4 h-4 rounded"
+                        />
+                        <span className="text-sm font-medium">{role.name}</span>
+                        {role.description && (
+                          <span className="text-xs text-gray-500">({role.description})</span>
+                        )}
+                      </label>
+
+                      {/* Show context fields for specific roles */}
+                      {selectedRoles.includes(role.name) && role.name === 'FACULTY_COORDINATOR' && (
+                        <div className="ml-6 mt-2">
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Select Event:
+                          </label>
+                          <select 
+                            className="w-full text-sm border rounded px-2 py-1"
+                            onChange={(e) => {
+                              const eventId = e.target.value;
+                              setRoleContext(prev => {
+                                const newContext = prev.filter(c => c.role !== 'FACULTY_COORDINATOR' || c.eventId !== eventId);
+                                if (eventId) {
+                                  newContext.push({ role: 'FACULTY_COORDINATOR', eventId });
+                                }
+                                return newContext;
+                              });
+                            }}
+                            value={roleContext.find(c => c.role === 'FACULTY_COORDINATOR')?.eventId || ''}
+                          >
+                            <option value="">-- Select Event --</option>
+                            {events.map((event: Event) => (
+                              <option key={event.id} value={event.id}>
+                                {event.title}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       )}
-                    </label>
+
+                      {selectedRoles.includes(role.name) && role.name === 'TEAM_LEAD' && (
+                        <div className="ml-6 mt-2">
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Select Team:
+                          </label>
+                          <select 
+                            className="w-full text-sm border rounded px-2 py-1"
+                            onChange={(e) => {
+                              const teamId = e.target.value;
+                              setRoleContext(prev => {
+                                const newContext = prev.filter(c => c.role !== 'TEAM_LEAD' || c.teamId !== teamId);
+                                if (teamId) {
+                                  newContext.push({ role: 'TEAM_LEAD', teamId });
+                                }
+                                return newContext;
+                              });
+                            }}
+                            value={roleContext.find(c => c.role === 'TEAM_LEAD')?.teamId || ''}
+                          >
+                            <option value="">-- Select Team --</option>
+                            {teams.map((team: Team) => (
+                              <option key={team.id} value={team.id}>
+                                {team.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
 

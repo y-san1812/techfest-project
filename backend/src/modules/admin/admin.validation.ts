@@ -24,6 +24,13 @@ export const setUserRolesSchema = z.object({
   }),
   body: z.object({
     roles: z.array(z.string()).min(1),
+    context: z.array(
+      z.object({
+        role: z.string(),
+        eventId: z.string().optional(),
+        teamId: z.string().optional(),
+      })
+    ).optional(),
   }),
 });
 

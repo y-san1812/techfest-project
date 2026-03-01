@@ -51,8 +51,8 @@ adminRouter.post('/users', validateRequest(createUserSchema), async (req, res, n
 
 adminRouter.patch('/users/:id/roles', validateRequest(setUserRolesSchema), async (req, res, next) => {
   try {
-    const { roles } = (req as any).validated.body;
-    await setUserRoles(req.params.id, roles);
+    const { roles, context } = (req as any).validated.body;
+    await setUserRoles(req.params.id, roles, context);
     res.status(200).json({ message: 'Roles updated' });
   } catch (err) {
     next(err);

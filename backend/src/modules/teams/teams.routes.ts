@@ -13,6 +13,7 @@ import {
   getPendingJoinRequests,
   approveJoinRequest,
   rejectJoinRequest,
+  getTeamProgress,
 } from './teams.service';
 import {
   createTeamSchema,
@@ -37,6 +38,15 @@ teamsRouter.get('/:id', async (req, res, next) => {
   try {
     const team = await getTeamById(req.params.id);
     res.json(team);
+  } catch (err) {
+    next(err);
+  }
+});
+
+teamsRouter.get('/:id/progress', async (req, res, next) => {
+  try {
+    const progress = await getTeamProgress(req.params.id);
+    res.json(progress);
   } catch (err) {
     next(err);
   }

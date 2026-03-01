@@ -1,40 +1,71 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Plus, X } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 interface Task {
   id: string;
   title: string;
   description: string | null;
-  status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   deadline: string | null;
   event?: { title: string } | null;
-  team?: { name: string } | null;
+  team?: { name: string; id: string } | null;
+  createdBy?: { name: string } | null;
+  assignments?: Array<{ userId: string; user: { name: string } }>;
+}
+
+interface Team {
+  id: string;
+  name: string;
+  teamLead: { id: string; name: string };
+  members: Array<{ userId: string; user: { id: string; name: string } }>;
 }
 
 const columns: { key: Task['status']; label: string; color: string }[] = [
-  { key: 'TODO', label: 'To Do', color: 'border-t-warning' },
+  { key: 'PENDING', label: 'Pending', color: 'border-t-warning' },
   { key: 'IN_PROGRESS', label: 'In Progress', color: 'border-t-primary' },
   { key: 'COMPLETED', label: 'Completed', color: 'border-t-success' },
 ];
 
 export default function TasksPage() {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [commentTaskId, setCommentTaskId] = useState<string | null>(null);
   const [comment, setComment] = useState('');
+  const [showCreateTask, setShowCreateTask] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  const [newTask, setNewTask] = useState({ title: '', description: '' });
 
   useEffect(() => {
-    api.get<Task[]>('/tasks/my').then(setTasks).catch(() => {}).finally(() => setLoading(false));
+    loadTasks();
   }, []);
+
+  const loadTasks = async () => {
+    try {
+      setLoading(true);
+      const [tasksRes, teamsRes] = await Promise.all([
+        api.get<Task[]>('/tasks/my'),
+        api.get<Team[]>('/teams'),
+      ]);
+      setTasks(tasksRes);
+      setTeams(teamsRes);
+    } catch (error) {
+      console.error('Failed to load tasks:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const updateStatus = async (id: string, status: Task['status']) => {
     try {
       await api.patch(`/tasks/${id}/status`, { status });
       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
-    } catch {
-      // ignore
+    } catch (error) {
+      console.error('Failed to update task status:', error);
     }
   };
 
@@ -44,18 +75,123 @@ export default function TasksPage() {
       await api.post(`/tasks/${taskId}/comments`, { content: comment });
       setComment('');
       setCommentTaskId(null);
-    } catch {
-      // ignore
+    } catch (error) {
+      console.error('Failed to add comment:', error);
     }
   };
+
+  const createTask = async () => {
+    if (!newTask.title.trim() || !selectedTeam) return;
+    try {
+      await api.post('/tasks', {
+        title: newTask.title,
+        description: newTask.description,
+        teamId: selectedTeam,
+      });
+      setNewTask({ title: '', description: '' });
+      setShowCreateTask(false);
+      loadTasks();
+    } catch (error) {
+      console.error('Failed to create task:', error);
+    }
+  };
+
+  // Check if user is a team lead for any team
+  const userTeamLeadTeams = teams.filter(t => t.teamLead.id === user?.id);
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Task Board</h2>
-          <p className="text-sm text-muted-foreground">Your assigned tasks organized by status</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">Task Board</h2>
+            <p className="text-sm text-muted-foreground">Your assigned tasks organized by status</p>
+          </div>
+          {userTeamLeadTeams.length > 0 && (
+            <button
+              onClick={() => setShowCreateTask(!showCreateTask)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Create Task
+            </button>
+          )}
         </div>
+
+        {/* Create Task Modal */}
+        {showCreateTask && userTeamLeadTeams.length > 0 && (
+          <div className="glass-card p-4 border border-primary/30 space-y-3">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="font-semibold text-foreground">Create New Task</h3>
+              <button
+                onClick={() => setShowCreateTask(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Select Team
+              </label>
+              <select
+                value={selectedTeam || ''}
+                onChange={(e) => setSelectedTeam(e.target.value)}
+                className="w-full px-3 py-2 rounded border border-border bg-background text-foreground text-sm focus:outline-none focus:border-primary"
+              >
+                <option value="">-- Choose a team --</option>
+                {userTeamLeadTeams.map(team => (
+                  <option key={team.id} value={team.id}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Task Title
+              </label>
+              <input
+                type="text"
+                value={newTask.title}
+                onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                placeholder="Enter task title..."
+                className="w-full px-3 py-2 rounded border border-border bg-background text-foreground text-sm focus:outline-none focus:border-primary"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Description (optional)
+              </label>
+              <textarea
+                value={newTask.description}
+                onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                placeholder="Enter task description..."
+                className="w-full px-3 py-2 rounded border border-border bg-background text-foreground text-sm focus:outline-none focus:border-primary resize-none"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowCreateTask(false)}
+                className="px-3 py-1 text-sm border border-border rounded hover:bg-secondary transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createTask}
+                disabled={!newTask.title.trim() || !selectedTeam}
+                className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Create Task
+              </button>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <p className="text-sm text-muted-foreground animate-pulse-glow">Loading tasks…</p>
@@ -80,9 +216,25 @@ export default function TasksPage() {
                         {task.description && (
                           <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
                         )}
-                        {task.event && (
-                          <p className="text-[11px] text-primary">📅 {task.event.title}</p>
+                        
+                        <div className="flex flex-col gap-1 text-[11px]">
+                          {task.team && (
+                            <p className="text-primary">👥 {task.team.name}</p>
+                          )}
+                          {task.event && (
+                            <p className="text-primary">📅 {task.event.title}</p>
+                          )}
+                          {task.createdBy && (
+                            <p className="text-muted-foreground">Created by: {task.createdBy.name}</p>
+                          )}
+                        </div>
+
+                        {task.assignments && task.assignments.length > 0 && (
+                          <div className="text-[11px] text-muted-foreground">
+                            Assigned to: {task.assignments.map(a => a.user.name).join(', ')}
+                          </div>
                         )}
+
                         {task.deadline && (
                           <p className="text-[11px] text-muted-foreground">
                             Due: {new Date(task.deadline).toLocaleDateString()}

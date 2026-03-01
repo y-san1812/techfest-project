@@ -199,3 +199,37 @@ export async function rejectJoinRequest(requestId: string) {
     data: { status: 'REJECTED' },
   });
 }
+
+export async function getTeamProgress(teamId: string) {
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    include: {
+      tasks: {
+        select: {
+          id: true,
+          status: true,
+        },
+      },
+    },
+  });
+
+  if (!team) {
+    const error = new Error('Team not found') as Error & { statusCode?: number };
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const totalTasks = team.tasks.length;
+  const completedTasks = team.tasks.filter(t => t.status === 'COMPLETED').length;
+  const inProgressTasks = team.tasks.filter(t => t.status === 'IN_PROGRESS').length;
+  const pendingTasks = team.tasks.filter(t => t.status === 'PENDING').length;
+
+  return {
+    teamId: team.id,
+    totalTasks,
+    completedTasks,
+    inProgressTasks,
+    pendingTasks,
+    completionPercentage: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+  };
+}
