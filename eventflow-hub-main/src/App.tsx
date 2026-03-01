@@ -13,6 +13,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import ReportsPage from "./pages/ReportsPage";
 import ReferralsPage from "./pages/ReferralsPage";
 import UsersPage from "./pages/UsersPage";
+import ClubsPage from "./pages/ClubsPage";
 import TeamsPage from "./pages/TeamsPage";
 import NotFound from "./pages/NotFound";
 
@@ -41,6 +42,11 @@ const App = () => (
             <Route path="/users" element={
               <ProtectedRoute roles={['SUPER_ADMIN', 'ADMIN']}>
                 <UsersPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/clubs" element={
+              <ProtectedRoute roles={['SUPER_ADMIN', 'ADMIN']}>
+                <ClubsPage />
               </ProtectedRoute>
             } />
             <Route path="/registrations" element={

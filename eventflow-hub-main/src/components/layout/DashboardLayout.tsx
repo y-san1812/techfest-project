@@ -14,6 +14,8 @@ import {
   Zap,
   Menu,
   X,
+  Users,
+  Building2,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -22,6 +24,7 @@ interface SidebarLink {
   to: string;
   icon: React.ElementType;
   roles?: Role[];
+  divider?: boolean;
 }
 
 const links: SidebarLink[] = [
@@ -55,6 +58,19 @@ const links: SidebarLink[] = [
     label: 'Reports',
     to: '/reports',
     icon: BarChart3,
+    roles: ['SUPER_ADMIN', 'ADMIN'],
+  },
+  {
+    label: 'Users',
+    to: '/users',
+    icon: Users,
+    roles: ['SUPER_ADMIN', 'ADMIN'],
+    divider: true,
+  },
+  {
+    label: 'Clubs',
+    to: '/clubs',
+    icon: Building2,
     roles: ['SUPER_ADMIN', 'ADMIN'],
   },
 ];
@@ -111,23 +127,27 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-          {filteredLinks.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-primary/10 text-primary border border-primary/20'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border border-transparent'
-                }`
-              }
-            >
-              <link.icon className="h-4 w-4 shrink-0" />
-              <span>{link.label}</span>
-            </NavLink>
+        <nav className="flex-1 px-3 py-3 overflow-y-auto">
+          {filteredLinks.map((link, index) => (
+            <div key={link.to}>
+              {link.divider && index > 0 && (
+                <div className="my-2 border-t border-sidebar-border" />
+              )}
+              <NavLink
+                to={link.to}
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary/10 text-primary border border-primary/20'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border border-transparent'
+                  }`
+                }
+              >
+                <link.icon className="h-4 w-4 shrink-0" />
+                <span>{link.label}</span>
+              </NavLink>
+            </div>
           ))}
         </nav>
 
